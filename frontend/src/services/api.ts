@@ -92,4 +92,90 @@ export const getIssueDuplicates = async (issueId: number) => {
   return response.data;
 };
 
+// Admin APIs
+export const getAdminDashboard = async () => {
+  const response = await api.get('/api/admin/dashboard');
+  return response.data;
+};
+
+export const getAdminIssues = async (
+  page = 1,
+  pageSize = 20,
+  filters?: {
+    status?: string;
+    category?: string;
+    severity?: string;
+    priorityMin?: number;
+    priorityMax?: number;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }
+) => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+  
+  if (filters?.status) params.append('status_filter', filters.status);
+  if (filters?.category) params.append('category_filter', filters.category);
+  if (filters?.severity) params.append('severity_filter', filters.severity);
+  if (filters?.priorityMin !== undefined) params.append('priority_min', filters.priorityMin.toString());
+  if (filters?.priorityMax !== undefined) params.append('priority_max', filters.priorityMax.toString());
+  if (filters?.search) params.append('search', filters.search);
+  if (filters?.sortBy) params.append('sort_by', filters.sortBy);
+  if (filters?.sortOrder) params.append('sort_order', filters.sortOrder);
+  
+  const response = await api.get(`/api/admin/issues?${params}`);
+  return response.data;
+};
+
+export const getAdminIssueDetail = async (issueId: number) => {
+  const response = await api.get(`/api/admin/issues/${issueId}`);
+  return response.data;
+};
+
+export const updateIssueStatus = async (issueId: number, newStatus: string, notes?: string) => {
+  const response = await api.patch(`/api/admin/issues/${issueId}/status`, {
+    new_status: newStatus,
+    notes
+  });
+  return response.data;
+};
+
+export const assignIssueDepartment = async (issueId: number, department: string) => {
+  const response = await api.patch(`/api/admin/issues/${issueId}/department`, {
+    department
+  });
+  return response.data;
+};
+
+export const addAdminNote = async (issueId: number, note: string) => {
+  const response = await api.post(`/api/admin/issues/${issueId}/notes`, {
+    note
+  });
+  return response.data;
+};
+
+export const resolveIssue = async (issueId: number, resolutionNotes: string, resolutionImage?: File) => {
+  const formData = new FormData();
+  formData.append('resolution_notes', resolutionNotes);
+  
+  if (resolutionImage) {
+    formData.append('resolution_image', resolutionImage);
+  }
+  
+  const response = await api.post(`/api/admin/issues/${issueId}/resolution`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const getUnresolvedIssuesForMap = async () => {
+  const response = await api.get('/api/admin/issues/map/unresolved');
+  return response.data;
+};
+
 export default api;

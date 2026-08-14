@@ -57,6 +57,9 @@ interface MapProps {
     title: string;
     description?: string;
     type?: 'user' | 'issue' | 'default';
+    color?: string;
+    priority?: string;
+    onClick?: () => void;
   }>;
   interactive?: boolean;
 }
@@ -143,7 +146,21 @@ export default function Map({
     }
   }, [onLocationSelect]);
 
-  const getMarkerIcon = (type: string = 'default') => {
+  const getMarkerIcon = (type: string = 'default', color?: string) => {
+    if (color) {
+      // Create custom colored marker
+      return new Icon({
+        iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="32" height="32">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        `),
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+      });
+    }
+    
     switch (type) {
       case 'user':
         return UserLocationIcon;
@@ -190,13 +207,19 @@ export default function Map({
           <Marker
             key={marker.id}
             position={[marker.position.lat, marker.position.lng]}
-            icon={getMarkerIcon(marker.type)}
+            icon={getMarkerIcon(marker.type, marker.color)}
+            eventHandlers={marker.onClick ? { click: marker.onClick } : undefined}
           >
             <Popup>
               <div className="text-sm">
                 <strong className="block">{marker.title}</strong>
                 {marker.description && (
                   <p className="mt-1 text-gray-600">{marker.description}</p>
+                )}
+                {marker.priority && (
+                  <p className="mt-1 text-xs font-medium uppercase text-gray-700">
+                    Priority: {marker.priority}
+                  </p>
                 )}
               </div>
             </Popup>

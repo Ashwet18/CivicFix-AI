@@ -71,6 +71,9 @@ class IssueResponse(BaseModel):
     ai_analysis_notes: Optional[str] = None
     assigned_department: Optional[str] = None
     duplicate_group_id: Optional[int] = None
+    resolved_at: Optional[datetime] = None
+    resolution_notes: Optional[str] = None
+    resolution_image_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     
@@ -106,4 +109,67 @@ class HealthResponse(BaseModel):
     status: str
     message: str
     version: str
+
+
+# Admin schemas (Phase 3)
+class AdminDashboardStats(BaseModel):
+    """Dashboard statistics"""
+    total_issues: int
+    critical_issues: int
+    high_priority_issues: int
+    pending_issues: int
+    in_progress_issues: int
+    resolved_issues: int
+    issues_by_category: dict
+    issues_by_status: dict
+    average_resolution_time_hours: Optional[float] = None
+
+
+class IssueStatusUpdate(BaseModel):
+    """Update issue status"""
+    new_status: str
+    notes: Optional[str] = None
+
+
+class IssueDepartmentUpdate(BaseModel):
+    """Assign issue to department"""
+    department: str
+
+
+class IssueAdminNote(BaseModel):
+    """Add admin note to issue"""
+    note: str
+
+
+class IssueResolution(BaseModel):
+    """Mark issue as resolved with evidence"""
+    resolution_notes: str
+
+
+class IssueHistoryResponse(BaseModel):
+    """Issue status history entry"""
+    id: int
+    issue_id: int
+    changed_by_user_id: Optional[int]
+    old_status: Optional[str]
+    new_status: Optional[str]
+    notes: Optional[str]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class AdminIssueDetailResponse(IssueResponse):
+    """Extended issue response for admin with additional fields"""
+    admin_notes: Optional[str] = None
+    assigned_at: Optional[datetime] = None
+    resolved_at: Optional[datetime] = None
+    resolution_notes: Optional[str] = None
+    resolution_image_path: Optional[str] = None
+    history: List[IssueHistoryResponse] = []
+    reporter_email: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
 

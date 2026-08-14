@@ -440,6 +440,57 @@ export default function IssueDetailPage() {
           </div>
         )}
 
+        {/* Resolution Evidence */}
+        {issue.status === 'resolved' && (issue.resolution_notes || issue.resolution_image_path) && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <CheckCircle className="w-5 h-5 mr-2 text-green-600" />
+              Resolution
+            </h2>
+            
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-4">
+              {issue.resolved_at && (
+                <div>
+                  <p className="text-sm text-green-700 font-medium">Resolved On</p>
+                  <p className="text-green-900 flex items-center mt-1">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    {formatDate(issue.resolved_at)}
+                  </p>
+                </div>
+              )}
+
+              {issue.resolution_notes && (
+                <div>
+                  <p className="text-sm text-green-700 font-medium mb-2">Resolution Notes</p>
+                  <p className="text-green-900 leading-relaxed">{issue.resolution_notes}</p>
+                </div>
+              )}
+
+              {issue.resolution_image_path && (
+                <div>
+                  <p className="text-sm text-green-700 font-medium mb-2">Resolution Photo</p>
+                  <img
+                    src={`http://localhost:8000/${issue.resolution_image_path}`}
+                    alt="Resolution evidence"
+                    className="w-full max-w-md rounded-lg border border-green-300 shadow-sm"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+
+              {issue.assigned_department && (
+                <div>
+                  <p className="text-sm text-green-700 font-medium">Resolved By</p>
+                  <p className="text-green-900">{issue.assigned_department}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Duplicate Information */}
         {duplicateInfo && duplicateInfo.is_duplicate && (
           <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">

@@ -13,6 +13,10 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import ReportIssuePage from './pages/ReportIssuePage';
 import MyIssuesPage from './pages/MyIssuesPage';
 import IssueDetailPage from './pages/IssueDetailPage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminIssuesPage from './pages/AdminIssuesPage';
+import AdminIssueDetailPage from './pages/AdminIssueDetailPage';
+import AdminMapPage from './pages/AdminMapPage';
 
 function App() {
   return (
@@ -73,9 +77,10 @@ function App() {
                 <ProtectedRoute requireRole="admin">
                   <Routes>
                     <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-                    <Route path="/dashboard" element={<AdminDashboard />} />
-                    <Route path="/issues" element={<AdminDashboard />} />
-                    <Route path="/map" element={<AdminDashboard />} />
+                    <Route path="/dashboard" element={<AdminDashboardPage />} />
+                    <Route path="/issues" element={<AdminIssuesPage />} />
+                    <Route path="/issues/:id" element={<AdminIssueDetailPage />} />
+                    <Route path="/map" element={<AdminMapPage />} />
                   </Routes>
                 </ProtectedRoute>
               }

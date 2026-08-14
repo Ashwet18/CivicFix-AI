@@ -38,6 +38,10 @@ app.include_router(auth_router.router)
 from routers import issues_router
 app.include_router(issues_router.router)
 
+# Import and include admin router
+from routers import admin_router
+app.include_router(admin_router.router)
+
 
 # Health check endpoint
 @app.get("/api/health", response_model=HealthResponse)

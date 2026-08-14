@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login API</title>
+</head>
+<body>
+    <h1>Direct API Login Test</h1>
+    <button onclick="testLogin()">Test Admin Login</button>
+    <button onclick="testCitizenLogin()">Test Citizen Login</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testLogin() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Testing admin login...\n';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@civicfix.example',
+                        password: 'admin123'
+                    })
+                });
+                
+                resultEl.textContent += `Status: ${response.status}\n`;
+                const data = await response.json();
+                resultEl.textContent += `Response: ${JSON.stringify(data, null, 2)}\n`;
+                
+                if (data.access_token) {
+                    resultEl.textContent += '\n✅ LOGIN SUCCESS!';
+                } else {
+                    resultEl.textContent += '\n❌ LOGIN FAILED!';
+                }
+            } catch (error) {
+                resultEl.textContent += `\n❌ Error: ${error.message}`;
+            }
+        }
+
+        async function testCitizenLogin() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Testing citizen login...\n';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'citizen@test.example',
+                        password: 'test123'
+                    })
+                });
+                
+                resultEl.textContent += `Status: ${response.status}\n`;
+                const data = await response.json();
+                resultEl.textContent += `Response: ${JSON.stringify(data, null, 2)}\n`;
+                
+                if (data.access_token) {
+                    resultEl.textContent += '\n✅ LOGIN SUCCESS!';
+                } else {
+                    resultEl.textContent += '\n❌ LOGIN FAILED!';
+                }
+            } catch (error) {
+                resultEl.textContent += `\n❌ Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

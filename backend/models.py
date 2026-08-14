@@ -65,6 +65,9 @@ class Issue(Base):
     resolution_notes = Column(Text)
     resolution_image_path = Column(String(500))
     
+    # Admin notes (internal)
+    admin_notes = Column(Text)
+    
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
