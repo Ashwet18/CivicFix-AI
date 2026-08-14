@@ -1,0 +1,26 @@
+# Core backend
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+pydantic==2.5.0
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# Database
+sqlalchemy==2.0.23
+
+# Authentication
+python-jose[cryptography]==3.3.0
+bcrypt==4.0.1
+
+# Image handling (for later phases)
+Pillow==10.1.0
+
+# Optional: For duplicate detection in later phases
+imagehash==4.3.1
+
+# NO CLIP
+# NO torch
+# NO transformers
+# NO tensorflow
+# NO huggingface-hub
