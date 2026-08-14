@@ -20,8 +20,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
     
-    # CORS
+    # CORS - Allow localhost on any port for local development
     CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGIN_REGEX: str = r"http://localhost:\d+"
     
     # File upload
     UPLOAD_DIR: str = "./uploads"
