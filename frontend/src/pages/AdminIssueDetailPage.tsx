@@ -8,12 +8,12 @@ import {
   addAdminNote,
   resolveIssue 
 } from '../services/api';
-import { AdminIssueDetail, DEPARTMENTS, ISSUE_STATUSES } from '../types';
+import { AdminIssueDetail, DEPARTMENTS } from '../types';
 import Map from '../components/Map';
+import CivicImpactAnalysis from '../components/CivicImpactAnalysis';
 import {
   ArrowLeft,
   Calendar,
-  MapPin,
   AlertTriangle,
   Shield,
   TrendingUp,
@@ -22,8 +22,6 @@ import {
   Clock,
   CheckCircle,
   RefreshCw,
-  Edit,
-  Save,
   X,
   Upload,
   FileText,
@@ -434,6 +432,11 @@ export default function AdminIssueDetailPage() {
               <p className="text-lg font-semibold">#{issue.duplicate_group_id}</p>
             </div>
           )}
+        </div>
+
+        {/* Civic Impact Analysis */}
+        <div className="mb-6">
+          <CivicImpactAnalysis issueId={issue.id} />
         </div>
 
         {/* Description */}

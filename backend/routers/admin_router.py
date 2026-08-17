@@ -16,6 +16,7 @@ from schemas import (
     IssueHistoryResponse, IssueResponse
 )
 from services.file_service import FileService
+from services.impact_service import CivicImpactService, CivicImpactResult
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
@@ -489,3 +490,80 @@ def get_unresolved_issues_for_map(
             for issue in issues
         ]
     }
+
+
+@router.get("/issues/{issue_id}/civic-impact", response_model=CivicImpactResult)
+def get_issue_civic_impact(
+    issue_id: int,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Calculate and return civic impact score for an issue.
+    This is separate from the operational Priority Score.
+    """
+    issue = db.query(Issue).filter(Issue.id == issue_id).first()
+    
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    
+    # For MVP, we use demo contextual values based on issue category and location
+    # These would be replaced with real data integration in production
+    
+    # Calculate safety risk from severity (0-100 scale)
+    severity_to_safety_risk = {
+        "low": 25,
+        "medium": 50,
+        "high": 75,
+        "critical": 95
+    }
+    safety_risk = severity_to_safety_risk.get(issue.severity.lower(), 50)
+    
+    # Determine road type based on category (demo logic)
+    road_type = "main_road"  # Default
+    if "Highway" in (issue.category or ""):
+        road_type = "highway"
+    elif "Street" in (issue.category or ""):
+        road_type = "local_street"
+    elif any(x in (issue.category or "") for x in ["Pothole", "Road"]):
+        road_type = "arterial_road"
+    
+    # Determine nearby locations based on description/context (demo logic)
+    nearby_locations = []
+    description_lower = (issue.description or "").lower()
+    if any(word in description_lower for word in ["school", "children", "students"]):
+        nearby_locations.append("school")
+    if any(word in description_lower for word in ["hospital", "clinic", "medical"]):
+        nearby_locations.append("hospital")
+    if any(word in description_lower for word in ["intersection", "crossroad", "junction"]):
+        nearby_locations.append("major_intersection")
+    if any(word in description_lower for word in ["market", "shop", "store", "commercial"]):
+        nearby_locations.append("market")
+    if any(word in description_lower for word in ["bus", "transit", "public transport"]):
+        nearby_locations.append("bus_stop")
+    
+    # Default to residential area if no specific location identified
+    if not nearby_locations:
+        nearby_locations = ["residential_area"]
+    
+    # Count duplicate reports (for citizen signal)
+    # In production, this would query actual duplicate detection
+    duplicate_count = 1  # Default single report
+    if issue.duplicate_group_id:
+        # Count issues in same duplicate group
+        duplicate_count = db.query(Issue).filter(
+            Issue.duplicate_group_id == issue.duplicate_group_id
+        ).count()
+    
+    # Calculate civic impact
+    impact_result = CivicImpactService.calculate_civic_impact(
+        severity=issue.severity,
+        safety_risk=safety_risk,
+        created_at=issue.created_at,
+        duplicate_count=duplicate_count,
+        road_type=road_type,
+        area_type="residential",  # Could be enhanced with geolocation data
+        nearby_locations=nearby_locations
+    )
+    
+    return impact_result
