@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
-import { Icon, LatLng } from 'leaflet';
+import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Location } from '../types';
 
@@ -56,8 +56,9 @@ interface MapProps {
     position: Location;
     title: string;
     description?: string;
-    type?: 'user' | 'issue' | 'default';
+    type?: 'user' | 'issue' | 'default' | 'hotspot';
     color?: string;
+    size?: 'normal' | 'large';
     priority?: string;
     onClick?: () => void;
   }>;
@@ -146,18 +147,45 @@ export default function Map({
     }
   }, [onLocationSelect]);
 
-  const getMarkerIcon = (type: string = 'default', color?: string) => {
+  const getMarkerIcon = (type: string = 'default', color?: string, size: 'normal' | 'large' = 'normal') => {
+    const isLarge = size === 'large';
+    const iconSize = isLarge ? 48 : 32;
+    const iconAnchor = isLarge ? 24 : 16;
+    const popupAnchor = isLarge ? -48 : -32;
+    
+    // Special styling for hotspot markers
+    if (type === 'hotspot') {
+      return new Icon({
+        iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+            <defs>
+              <radialGradient id="hotspotGradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" style="stop-color:#FFA500;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#FF4500;stop-opacity:1" />
+              </radialGradient>
+            </defs>
+            <circle cx="24" cy="24" r="20" fill="url(#hotspotGradient)" stroke="#8B4000" stroke-width="3" opacity="0.9"/>
+            <path d="M24 8 L28 16 L36 18 L30 24 L32 32 L24 28 L16 32 L18 24 L12 18 L20 16 Z" fill="white" opacity="0.9"/>
+            <circle cx="24" cy="24" r="6" fill="#FFD700" stroke="#FF4500" stroke-width="2"/>
+          </svg>
+        `),
+        iconSize: [48, 48],
+        iconAnchor: [24, 24],
+        popupAnchor: [0, -24]
+      });
+    }
+    
     if (color) {
       // Create custom colored marker
       return new Icon({
         iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="32" height="32">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="${iconSize}" height="${iconSize}">
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
           </svg>
         `),
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32]
+        iconSize: [iconSize, iconSize],
+        iconAnchor: [iconAnchor, iconSize],
+        popupAnchor: [0, popupAnchor]
       });
     }
     
@@ -207,7 +235,7 @@ export default function Map({
           <Marker
             key={marker.id}
             position={[marker.position.lat, marker.position.lng]}
-            icon={getMarkerIcon(marker.type, marker.color)}
+            icon={getMarkerIcon(marker.type, marker.color, marker.size)}
             eventHandlers={marker.onClick ? { click: marker.onClick } : undefined}
           >
             <Popup>

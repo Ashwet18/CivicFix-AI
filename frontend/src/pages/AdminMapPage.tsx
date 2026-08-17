@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getUnresolvedIssuesForMap } from '../services/api';
 import Map from '../components/Map';
@@ -12,8 +12,22 @@ import {
   RefreshCw,
   Eye,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Flame
 } from 'lucide-react';
+
+interface Hotspot {
+  hotspot_id: string;
+  center_latitude: number;
+  center_longitude: number;
+  issue_count: number;
+  issue_ids: number[];
+  categories: string[];
+  highest_civic_impact: number;
+  average_civic_impact: number;
+  critical_issue_count: number;
+  status_summary: Record<string, number>;
+}
 
 // Priority-based marker colors
 const PRIORITY_COLORS = {
@@ -40,17 +54,26 @@ const STATUS_COLORS = {
 export default function AdminMapPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   
   const [issues, setIssues] = useState<MapIssue[]>([]);
+  const [hotspots, setHotspots] = useState<Hotspot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<MapIssue | null>(null);
+  const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | null>(null);
+  const [showHotspots, setShowHotspots] = useState(true);
   
   // Filters
   const [severityFilter, setSeverityFilter] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Check for URL parameters (from hotspot "View on Map" button)
+  const urlLat = searchParams.get('lat');
+  const urlLng = searchParams.get('lng');
+  const urlZoom = searchParams.get('zoom');
 
   // Redirect non-admins
   useEffect(() => {
@@ -59,17 +82,31 @@ export default function AdminMapPage() {
     }
   }, [user, navigate]);
 
-  // Load unresolved issues
+  // Load unresolved issues and hotspots
   const loadIssues = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const data = await getUnresolvedIssuesForMap();
-      setIssues(data);
+      const token = localStorage.getItem('token');
+      
+      // Fetch both issues and hotspots
+      const [issuesData, hotspotsResponse] = await Promise.all([
+        getUnresolvedIssuesForMap(),
+        fetch('http://localhost:8000/api/admin/hotspots', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+      
+      setIssues(issuesData);
+      
+      if (hotspotsResponse.ok) {
+        const hotspotsData = await hotspotsResponse.json();
+        setHotspots(hotspotsData);
+      }
       
     } catch (err: any) {
-      console.error('Failed to load map issues:', err);
+      console.error('Failed to load map data:', err);
       if (err.response?.status === 403) {
         setError('Admin access required');
         navigate('/login');
@@ -109,8 +146,12 @@ export default function AdminMapPage() {
     return true;
   });
 
-  // Create map markers with priority-based colors
-  const markers = filteredIssues.map(issue => {
+  // Get issues that are NOT part of any hotspot
+  const hotspotIssueIds = new Set(hotspots.flatMap(h => h.issue_ids));
+  const standaloneIssues = filteredIssues.filter(issue => !hotspotIssueIds.has(issue.id));
+
+  // Create map markers for standalone issues with priority-based colors
+  const issueMarkers = standaloneIssues.map(issue => {
     const priorityCat = getPriorityCategory(issue.priority_score);
     
     return {
@@ -124,13 +165,30 @@ export default function AdminMapPage() {
     };
   });
 
-  // Calculate map center (average of all issue positions)
-  const mapCenter = filteredIssues.length > 0
+  // Create map markers for hotspots (distinct visual style)
+  const hotspotMarkers = showHotspots ? hotspots.map(hotspot => ({
+    id: hotspot.hotspot_id,
+    position: { lat: hotspot.center_latitude, lng: hotspot.center_longitude },
+    title: `Hotspot: ${hotspot.issue_count} issues`,
+    type: 'hotspot' as const,
+    color: '#F97316', // orange-500
+    size: 'large' as const,
+    onClick: () => setSelectedHotspot(hotspot)
+  })) : [];
+
+  const markers = [...issueMarkers, ...hotspotMarkers];
+
+  // Calculate map center (average of all issue positions or URL params)
+  const mapCenter = (urlLat && urlLng)
+    ? { lat: parseFloat(urlLat), lng: parseFloat(urlLng) }
+    : filteredIssues.length > 0
     ? {
         lat: filteredIssues.reduce((sum, i) => sum + i.latitude, 0) / filteredIssues.length,
         lng: filteredIssues.reduce((sum, i) => sum + i.longitude, 0) / filteredIssues.length
       }
     : { lat: 40.7128, lng: -74.0060 }; // Default to NYC
+
+  const mapZoom = urlZoom ? parseInt(urlZoom) : 12;
 
   // Count by priority
   const priorityCounts = {
@@ -206,27 +264,57 @@ export default function AdminMapPage() {
 
         {/* Priority Legend */}
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
-          <h3 className="font-semibold text-gray-900 mb-3">Priority Legend</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900">Map Legend</h3>
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showHotspots}
+                onChange={(e) => setShowHotspots(e.target.checked)}
+                className="mr-2"
+              />
+              <span className="text-sm">Show Hotspots</span>
+            </label>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {showHotspots && (
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center border-2 border-orange-700">
+                  <Flame className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <span className="text-sm font-medium">Hotspot</span>
+                  <span className="text-xs text-gray-600 block">({hotspots.length})</span>
+                </div>
+              </div>
+            )}
             <div className="flex items-center space-x-2">
               <div className="w-6 h-6 rounded-full" style={{ backgroundColor: PRIORITY_COLORS.critical }}></div>
-              <span className="text-sm font-medium">Critical Priority</span>
-              <span className="text-xs text-gray-600">({priorityCounts.critical})</span>
+              <div>
+                <span className="text-sm font-medium">Critical</span>
+                <span className="text-xs text-gray-600 block">({priorityCounts.critical})</span>
+              </div>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-6 h-6 rounded-full" style={{ backgroundColor: PRIORITY_COLORS.high }}></div>
-              <span className="text-sm font-medium">High Priority</span>
-              <span className="text-xs text-gray-600">({priorityCounts.high})</span>
+              <div>
+                <span className="text-sm font-medium">High</span>
+                <span className="text-xs text-gray-600 block">({priorityCounts.high})</span>
+              </div>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-6 h-6 rounded-full" style={{ backgroundColor: PRIORITY_COLORS.medium }}></div>
-              <span className="text-sm font-medium">Medium Priority</span>
-              <span className="text-xs text-gray-600">({priorityCounts.medium})</span>
+              <div>
+                <span className="text-sm font-medium">Medium</span>
+                <span className="text-xs text-gray-600 block">({priorityCounts.medium})</span>
+              </div>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-6 h-6 rounded-full" style={{ backgroundColor: PRIORITY_COLORS.low }}></div>
-              <span className="text-sm font-medium">Low Priority</span>
-              <span className="text-xs text-gray-600">({priorityCounts.low})</span>
+              <div>
+                <span className="text-sm font-medium">Low</span>
+                <span className="text-xs text-gray-600 block">({priorityCounts.low})</span>
+              </div>
             </div>
           </div>
         </div>
@@ -339,7 +427,7 @@ export default function AdminMapPage() {
           ) : (
             <Map
               center={mapCenter}
-              zoom={12}
+              zoom={mapZoom}
               height="600px"
               markers={markers}
               interactive={true}
@@ -425,6 +513,106 @@ export default function AdminMapPage() {
                 >
                   <Eye className="w-4 h-4 mr-2" />
                   View Full Details
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Selected Hotspot Popup */}
+        {selectedHotspot && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-1 flex items-center">
+                    <Flame className="w-6 h-6 text-orange-600 mr-2" />
+                    Civic Hotspot
+                  </h3>
+                  <p className="text-sm text-gray-600">{selectedHotspot.hotspot_id}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedHotspot(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Metrics */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-orange-50 rounded-lg p-4 text-center border border-orange-200">
+                    <p className="text-3xl font-bold text-orange-600">{selectedHotspot.issue_count}</p>
+                    <p className="text-sm text-gray-600">Related Issues</p>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-4 text-center border border-red-200">
+                    <p className="text-3xl font-bold text-red-600">{selectedHotspot.critical_issue_count}</p>
+                    <p className="text-sm text-gray-600">Critical</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-4 text-center border border-blue-200">
+                    <p className="text-3xl font-bold text-blue-600">{Math.round(selectedHotspot.highest_civic_impact)}</p>
+                    <p className="text-sm text-gray-600">Max Impact</p>
+                  </div>
+                </div>
+
+                {/* Categories */}
+                <div>
+                  <p className="text-sm text-gray-600 mb-2">Issue Categories</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedHotspot.categories.map((cat, idx) => (
+                      <span key={idx} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Status Summary */}
+                <div>
+                  <p className="text-sm text-gray-600 mb-2">Status Breakdown</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(selectedHotspot.status_summary).map(([status, count]) => (
+                      <div key={status} className="flex items-center justify-between bg-gray-50 rounded p-2">
+                        <span className="text-sm capitalize">{status.replace('_', ' ')}</span>
+                        <span className="font-semibold">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Center Location</p>
+                  <p className="text-gray-900 font-mono text-sm">
+                    {selectedHotspot.center_latitude.toFixed(6)}, {selectedHotspot.center_longitude.toFixed(6)}
+                  </p>
+                </div>
+
+                {/* Issue IDs */}
+                <div>
+                  <p className="text-sm text-gray-600 mb-2">Included Issues</p>
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                    {selectedHotspot.issue_ids.map(issueId => (
+                      <button
+                        key={issueId}
+                        onClick={() => navigate(`/admin/issues/${issueId}`)}
+                        className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm hover:bg-blue-200"
+                      >
+                        #{issueId}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Close Button */}
+                <button
+                  onClick={() => setSelectedHotspot(null)}
+                  className="w-full flex items-center justify-center px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Close
                 </button>
               </div>
             </div>

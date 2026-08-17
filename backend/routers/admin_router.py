@@ -17,6 +17,7 @@ from schemas import (
 )
 from services.file_service import FileService
 from services.impact_service import CivicImpactService, CivicImpactResult
+from services.hotspot_service import HotspotService, Hotspot
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
@@ -567,3 +568,44 @@ def get_issue_civic_impact(
     )
     
     return impact_result
+
+
+@router.get("/hotspots", response_model=List[Hotspot])
+def get_civic_hotspots(
+    radius_km: float = Query(0.5, ge=0.1, le=5.0, description="Clustering radius in kilometers"),
+    min_size: int = Query(3, ge=2, le=10, description="Minimum issues to form a hotspot"),
+    include_resolved: bool = Query(False, description="Include resolved issues in clustering"),
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Detect and return civic hotspots (geographic clusters of related issues).
+    
+    Returns hotspots sorted by highest civic impact (descending).
+    """
+    hotspots = HotspotService.detect_hotspots(
+        db=db,
+        radius_km=radius_km,
+        min_hotspot_size=min_size,
+        include_resolved=include_resolved
+    )
+    
+    return hotspots
+
+
+@router.get("/hotspots/{hotspot_id}", response_model=Hotspot)
+def get_hotspot_detail(
+    hotspot_id: str,
+    radius_km: float = Query(0.5, ge=0.1, le=5.0),
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Get details for a specific hotspot.
+    """
+    hotspot = HotspotService.get_hotspot_by_id(db, hotspot_id, radius_km)
+    
+    if not hotspot:
+        raise HTTPException(status_code=404, detail="Hotspot not found")
+    
+    return hotspot

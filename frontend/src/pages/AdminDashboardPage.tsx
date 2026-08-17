@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getAdminDashboard, getAdminIssues } from '../services/api';
 import { AdminDashboardStats, Issue } from '../types';
+import CivicHotspots from '../components/CivicHotspots';
 import {
   LayoutDashboard,
   AlertTriangle,
@@ -275,6 +276,11 @@ export default function AdminDashboardPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Civic Hotspots Section */}
+        <div className="mb-8">
+          <CivicHotspots maxDisplay={3} />
         </div>
 
         {/* High Priority Issues */}
