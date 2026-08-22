@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { createIssue } from '../services/api';
 import { ISSUE_CATEGORIES, Location, IssueCreateResponse } from '../types';
 import Map, { useCurrentLocation } from '../components/Map';
-import { MapPin, Upload, X, Camera, AlertCircle } from 'lucide-react';
+import { MapPin, X, Camera, AlertCircle } from 'lucide-react';
 
 export default function ReportIssuePage() {
   const navigate = useNavigate();

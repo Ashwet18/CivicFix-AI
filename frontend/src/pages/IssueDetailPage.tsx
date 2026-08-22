@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getIssueDetail, getIssueDuplicates } from '../services/api';
@@ -7,7 +7,6 @@ import Map from '../components/Map';
 import { 
   ArrowLeft,
   Calendar,
-  MapPin,
   AlertTriangle,
   Shield,
   TrendingUp,
@@ -16,7 +15,6 @@ import {
   Clock,
   CheckCircle,
   RefreshCw,
-  ExternalLink,
   Copy,
   Share2
 } from 'lucide-react';

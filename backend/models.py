@@ -68,6 +68,9 @@ class Issue(Base):
     # Admin notes (internal)
     admin_notes = Column(Text)
     
+    # Demo data flag (for presentation/testing purposes)
+    is_demo = Column(Integer, default=0, nullable=False)  # 0=real, 1=demo
+    
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

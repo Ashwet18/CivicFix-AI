@@ -5,14 +5,14 @@ import 'leaflet/dist/leaflet.css';
 import { Location } from '../types';
 
 // Fix for default markers in React Leaflet
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
+// Instead of importing images (which causes build errors), use inline SVG data URIs
 const DefaultIcon = new Icon({
-  iconUrl: markerIcon,
-  iconRetinaUrl: markerIcon2x,
-  shadowUrl: markerShadow,
+  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41" width="25" height="41">
+      <path fill="#3B82F6" stroke="#1E40AF" stroke-width="2" d="M12.5 0C5.6 0 0 5.6 0 12.5 0 23.4 12.5 41 12.5 41S25 23.4 25 12.5C25 5.6 19.4 0 12.5 0z"/>
+      <circle cx="12.5" cy="12.5" r="5" fill="white"/>
+    </svg>
+  `),
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
@@ -61,6 +61,7 @@ interface MapProps {
     size?: 'normal' | 'large';
     priority?: string;
     onClick?: () => void;
+    disablePopup?: boolean;
   }>;
   interactive?: boolean;
 }
@@ -134,11 +135,24 @@ export default function Map({
   markers = [],
   interactive = true
 }: MapProps) {
-  const [mapCenter, setMapCenter] = useState<Location>(center);
+  // Validate center coordinates
+  const validCenter = (
+    center &&
+    typeof center.lat === 'number' &&
+    typeof center.lng === 'number' &&
+    !isNaN(center.lat) &&
+    !isNaN(center.lng) &&
+    center.lat >= -90 &&
+    center.lat <= 90 &&
+    center.lng >= -180 &&
+    center.lng <= 180
+  ) ? center : { lat: 40.7128, lng: -74.0060 };
+
+  const [mapCenter, setMapCenter] = useState<Location>(validCenter);
 
   // Update center when prop changes
   useEffect(() => {
-    setMapCenter(center);
+    setMapCenter(validCenter);
   }, [center]);
 
   const handleLocationSelect = useCallback((location: Location) => {
@@ -146,6 +160,23 @@ export default function Map({
       onLocationSelect(location);
     }
   }, [onLocationSelect]);
+
+  // Validate and filter markers
+  const validMarkers = markers.filter(marker => {
+    if (!marker || !marker.position) return false;
+    const lat = marker.position.lat;
+    const lng = marker.position.lng;
+    return (
+      typeof lat === 'number' &&
+      typeof lng === 'number' &&
+      !isNaN(lat) &&
+      !isNaN(lng) &&
+      lat >= -90 &&
+      lat <= 90 &&
+      lng >= -180 &&
+      lng <= 180
+    );
+  });
 
   const getMarkerIcon = (type: string = 'default', color?: string, size: 'normal' | 'large' = 'normal') => {
     const isLarge = size === 'large';
@@ -200,11 +231,11 @@ export default function Map({
   };
 
   return (
-    <div className={`relative ${className}`} style={{ height }}>
+    <div className={`relative ${className}`} style={{ height, width: '100%', minHeight: height }}>
       <MapContainer
         center={[mapCenter.lat, mapCenter.lng]}
         zoom={zoom}
-        className="w-full h-full rounded-lg"
+        style={{ height: '100%', width: '100%' }}
         scrollWheelZoom={interactive}
         dragging={interactive}
         touchZoom={interactive}
@@ -231,26 +262,29 @@ export default function Map({
         )}
         
         {/* Static markers */}
-        {markers.map((marker) => (
+        {validMarkers.map((marker) => (
           <Marker
             key={marker.id}
             position={[marker.position.lat, marker.position.lng]}
             icon={getMarkerIcon(marker.type, marker.color, marker.size)}
             eventHandlers={marker.onClick ? { click: marker.onClick } : undefined}
+            zIndexOffset={marker.type === 'hotspot' ? 1000 : 0}
           >
-            <Popup>
-              <div className="text-sm">
-                <strong className="block">{marker.title}</strong>
-                {marker.description && (
-                  <p className="mt-1 text-gray-600">{marker.description}</p>
-                )}
-                {marker.priority && (
-                  <p className="mt-1 text-xs font-medium uppercase text-gray-700">
-                    Priority: {marker.priority}
-                  </p>
-                )}
-              </div>
-            </Popup>
+            {!marker.disablePopup && (
+              <Popup>
+                <div className="text-sm">
+                  <strong className="block">{marker.title}</strong>
+                  {marker.description && (
+                    <p className="mt-1 text-gray-600">{marker.description}</p>
+                  )}
+                  {marker.priority && (
+                    <p className="mt-1 text-xs font-medium uppercase text-gray-700">
+                      Priority: {marker.priority}
+                    </p>
+                  )}
+                </div>
+              </Popup>
+            )}
           </Marker>
         ))}
       </MapContainer>

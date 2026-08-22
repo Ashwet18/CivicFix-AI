@@ -8,8 +8,6 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
-import { CitizenDashboard } from './pages/CitizenDashboard';
-import { AdminDashboard } from './pages/AdminDashboard';
 import ReportIssuePage from './pages/ReportIssuePage';
 import MyIssuesPage from './pages/MyIssuesPage';
 import IssueDetailPage from './pages/IssueDetailPage';
@@ -17,6 +15,8 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminIssuesPage from './pages/AdminIssuesPage';
 import AdminIssueDetailPage from './pages/AdminIssueDetailPage';
 import AdminMapPage from './pages/AdminMapPage';
+import MapTest from './pages/MapTest';
+import DiagnosticPage from './pages/DiagnosticPage';
 
 function App() {
   return (
@@ -29,6 +29,8 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/map-test" element={<MapTest />} />
+            <Route path="/diagnostic" element={<DiagnosticPage />} />
 
             {/* Citizen routes - Phase 2 Implementation */}
             <Route

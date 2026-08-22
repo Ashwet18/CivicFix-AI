@@ -11,7 +11,6 @@ import {
   Filter,
   RefreshCw,
   Eye,
-  AlertTriangle,
   CheckCircle,
   Flame
 } from 'lucide-react';
@@ -52,6 +51,7 @@ const STATUS_COLORS = {
 };
 
 export default function AdminMapPage() {
+  console.log('AdminMapPage component rendering');
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -63,6 +63,8 @@ export default function AdminMapPage() {
   const [selectedIssue, setSelectedIssue] = useState<MapIssue | null>(null);
   const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | null>(null);
   const [showHotspots, setShowHotspots] = useState(true);
+  const [initialMapCenter, setInitialMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [initialMapZoom, setInitialMapZoom] = useState<number>(12);
   
   // Filters
   const [severityFilter, setSeverityFilter] = useState<string>('');
@@ -70,14 +72,23 @@ export default function AdminMapPage() {
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
 
-  // Check for URL parameters (from hotspot "View on Map" button)
-  const urlLat = searchParams.get('lat');
-  const urlLng = searchParams.get('lng');
-  const urlZoom = searchParams.get('zoom');
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (selectedHotspot || selectedIssue) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [selectedHotspot, selectedIssue]);
 
   // Redirect non-admins
   useEffect(() => {
+    console.log('AdminMapPage auth check:', { user, role: user?.role });
     if (!user || user.role !== 'admin') {
+      console.log('Redirecting to login - not authenticated as admin');
       navigate('/login');
     }
   }, [user, navigate]);
@@ -98,11 +109,30 @@ export default function AdminMapPage() {
         })
       ]);
       
-      setIssues(issuesData);
+      // Extract issues array from response object
+      const issuesArray = issuesData.issues || [];
+      setIssues(issuesArray);
       
       if (hotspotsResponse.ok) {
         const hotspotsData = await hotspotsResponse.json();
         setHotspots(hotspotsData);
+      }
+      
+      // Set initial map center only once
+      if (!initialMapCenter && issuesArray.length > 0) {
+        const urlLat = searchParams.get('lat');
+        const urlLng = searchParams.get('lng');
+        const urlZoom = searchParams.get('zoom');
+        
+        const center = (urlLat && urlLng)
+          ? { lat: parseFloat(urlLat), lng: parseFloat(urlLng) }
+          : {
+              lat: issuesArray.reduce((sum: number, i: any) => sum + i.latitude, 0) / issuesArray.length,
+              lng: issuesArray.reduce((sum: number, i: any) => sum + i.longitude, 0) / issuesArray.length
+            };
+        
+        setInitialMapCenter(center);
+        setInitialMapZoom(urlZoom ? parseInt(urlZoom) : 12);
       }
       
     } catch (err: any) {
@@ -131,10 +161,10 @@ export default function AdminMapPage() {
   };
 
   // Get unique categories
-  const uniqueCategories = Array.from(new Set(issues.map(i => i.category))).sort();
+  const uniqueCategories = Array.from(new Set((issues || []).map(i => i.category))).sort();
 
   // Filter issues
-  const filteredIssues = issues.filter(issue => {
+  const filteredIssues = (issues || []).filter(issue => {
     if (severityFilter && issue.severity !== severityFilter) return false;
     if (categoryFilter && issue.category !== categoryFilter) return false;
     
@@ -173,22 +203,14 @@ export default function AdminMapPage() {
     type: 'hotspot' as const,
     color: '#F97316', // orange-500
     size: 'large' as const,
-    onClick: () => setSelectedHotspot(hotspot)
+    onClick: () => {
+      console.log('Hotspot clicked:', hotspot.hotspot_id);
+      setSelectedHotspot(hotspot);
+    },
+    disablePopup: true
   })) : [];
 
   const markers = [...issueMarkers, ...hotspotMarkers];
-
-  // Calculate map center (average of all issue positions or URL params)
-  const mapCenter = (urlLat && urlLng)
-    ? { lat: parseFloat(urlLat), lng: parseFloat(urlLng) }
-    : filteredIssues.length > 0
-    ? {
-        lat: filteredIssues.reduce((sum, i) => sum + i.latitude, 0) / filteredIssues.length,
-        lng: filteredIssues.reduce((sum, i) => sum + i.longitude, 0) / filteredIssues.length
-      }
-    : { lat: 40.7128, lng: -74.0060 }; // Default to NYC
-
-  const mapZoom = urlZoom ? parseInt(urlZoom) : 12;
 
   // Count by priority
   const priorityCounts = {
@@ -412,22 +434,25 @@ export default function AdminMapPage() {
 
         {/* Map Container */}
         <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-          {filteredIssues.length === 0 ? (
+          {filteredIssues.length === 0 || !initialMapCenter ? (
             <div className="p-12 text-center">
               <CheckCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No Unresolved Issues
+                {!initialMapCenter ? 'Loading map...' : 'No Unresolved Issues'}
               </h3>
               <p className="text-gray-600">
-                {activeFilters > 0 
+                {activeFilters > 0 && initialMapCenter
                   ? 'Try adjusting your filters to see more issues.'
+                  : !initialMapCenter
+                  ? 'Please wait...'
                   : 'All issues have been resolved!'}
               </p>
             </div>
           ) : (
             <Map
-              center={mapCenter}
-              zoom={mapZoom}
+              key="admin-map-fixed"
+              center={initialMapCenter}
+              zoom={initialMapZoom}
               height="600px"
               markers={markers}
               interactive={true}
@@ -521,8 +546,19 @@ export default function AdminMapPage() {
 
         {/* Selected Hotspot Popup */}
         {selectedHotspot && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setSelectedHotspot(null);
+              }
+            }}
+            style={{ pointerEvents: 'auto' }}
+          >
+            <div 
+              className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-1 flex items-center">

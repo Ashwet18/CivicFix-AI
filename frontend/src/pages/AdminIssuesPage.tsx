@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getAdminIssues } from '../services/api';
 import { Issue, IssueListResponse, ISSUE_CATEGORIES, ISSUE_STATUSES, SEVERITY_LEVELS } from '../types';
@@ -33,7 +33,6 @@ const STATUS_COLORS = {
 export default function AdminIssuesPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
   
   // State
   const [issues, setIssues] = useState<Issue[]>([]);
